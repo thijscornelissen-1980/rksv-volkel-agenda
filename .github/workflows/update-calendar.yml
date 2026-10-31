@@ -1,0 +1,39 @@
+name: Update Voetbal Klaas calendar
+
+on:
+  schedule:
+    # 06:00 Amsterdam is 04:00 UTC in summer and 05:00 UTC in winter.
+    - cron: "0 4 * * *"
+    - cron: "0 5 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  update-calendar:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Download and prepare calendar
+        run: python update_calendar.py --scheduled
+        if: github.event_name == 'schedule'
+      - name: Download and prepare calendar (manual run)
+        run: python update_calendar.py
+        if: github.event_name == 'workflow_dispatch'
+      - name: Commit updated calendar
+        run: |
+          if git diff --quiet -- volkel.ics; then
+            echo "Calendar is already up to date."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add volkel.ics
+          git commit -m "Update Voetbal Klaas calendar"
+          git push
