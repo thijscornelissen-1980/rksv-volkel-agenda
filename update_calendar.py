@@ -64,7 +64,7 @@ def set_attendance_start(lines, minutes):
 def process_event(lines, config):
     summary_line = next((line for line in lines if line.startswith("SUMMARY")), "")
     summary = unescape_ical(summary_line.split(":", 1)[-1]) if ":" in summary_line else ""
-    parts = re.split(r"\\s+(?:tegen|-)\\s+", summary, maxsplit=1, flags=re.IGNORECASE)
+    parts = re.split(r"\s+(?:tegen|-)\s+", summary, maxsplit=1, flags=re.IGNORECASE)
     if len(parts) != 2:
         raise RuntimeError(f"Kan thuis/uit niet bepalen uit wedstrijdnaam: {summary!r}")
     home, away = (part.lower() for part in parts)
