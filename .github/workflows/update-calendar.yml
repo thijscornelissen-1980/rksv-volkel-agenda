@@ -1,8 +1,12 @@
 name: Update Voetbal Klaas calendar
 
 on:
+  push:
+    branches: [main]
+    paths:
+      - "update_calendar.py"
+      - ".github/workflows/update-calendar.yml"
   schedule:
-    # 06:00 Amsterdam is 04:00 UTC in summer and 05:00 UTC in winter.
     - cron: "0 4 * * *"
     - cron: "0 5 * * *"
   workflow_dispatch:
@@ -14,18 +18,16 @@ jobs:
   update-calendar:
     runs-on: ubuntu-latest
     steps:
-      - name: Check out repository
-        uses: actions/checkout@v4
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
       - name: Download and prepare calendar
         run: python update_calendar.py --scheduled
         if: github.event_name == 'schedule'
-      - name: Download and prepare calendar (manual run)
+      - name: Download and prepare calendar
         run: python update_calendar.py
-        if: github.event_name == 'workflow_dispatch'
+        if: github.event_name != 'schedule'
       - name: Commit updated calendar
         run: |
           if git diff --quiet -- volkel.ics; then
