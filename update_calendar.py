@@ -33,36 +33,34 @@ def unfold_ical(raw):
     return [line for line in unfolded if line]
 
 def unescape_ical(value):
-    return (value.replace(r"\\n", " ").replace(r"\\,", ",")
-                 .replace(r"\\;", ";").replace(r"\\:", ":"))
+    return value.replace(r"\\n", " ").replace(r"\\,", ",").replace(r"\\;", ";")
 
 def set_attendance_start(lines, minutes):
-    """Move the calendar event start to arrival time; retain kickoff in description."""
+    """Move event start to arrival time; retain kickoff time in its description."""
     index = next((i for i, line in enumerate(lines) if line.startswith("DTSTART")), None)
     if index is None:
         raise RuntimeError("Wedstrijd heeft geen DTSTART (aanvangstijd).")
-    line = lines[index]
-    prop, value = line.split(":", 1)
-    has_seconds = len(value.rstrip("Z")) == 15
-    fmt = "%Y%m%dT%H%M%S" if has_seconds else "%Y%m%dT%H%M"
+    prop, value = lines[index].split(":", 1)
+    bare_value = value.rstrip("Z")
+    fmt = "%Y%m%dT%H%M%S" if len(bare_value) == 15 else "%Y%m%dT%H%M"
     suffix = "Z" if value.endswith("Z") else ""
-    kickoff = datetime.strptime(value.rstrip("Z"), fmt)
+    kickoff = datetime.strptime(bare_value, fmt)
     arrival = kickoff - timedelta(minutes=minutes)
     lines[index] = f"{prop}:{arrival.strftime(fmt)}{suffix}"
 
-    kickoff_text = kickoff.strftime("%H:%M")
-    arrival_text = arrival.strftime("%H:%M")
-    description = f"Aanwezig vanaf {arrival_text}. Aanvang wedstrijd: {kickoff_text}."
-    desc_index = next((i for i, item in enumerate(lines) if item.startswith("DESCRIPTION")), None)
+    description = (
+        f"Aanwezig vanaf {arrival.strftime('%H:%M')}. "
+        f"Aanvang wedstrijd: {kickoff.strftime('%H:%M')}."
+    )
+    desc_index = next((i for i, line in enumerate(lines) if line.startswith("DESCRIPTION")), None)
     if desc_index is None:
         lines.insert(index + 1, f"DESCRIPTION:{description}")
     else:
-        old = lines[desc_index].split(":", 1)[1]
-        lines[desc_index] = f"DESCRIPTION:{old}\\n{description}"
+        lines[desc_index] = f"DESCRIPTION:{description}"
     return lines
 
-def process_event(lines, config):
-    summary_line = next((line for line in lines if line.startswith("SUMMARY")), "")
+def process_event(event_lines, config):
+    summary_line = next((line for line in event_lines if line.startswith("SUMMARY")), "")
     summary = unescape_ical(summary_line.split(":", 1)[-1]) if ":" in summary_line else ""
     parts = re.split(r"\s+(?:tegen|-)\s+", summary, maxsplit=1, flags=re.IGNORECASE)
     if len(parts) != 2:
@@ -74,6 +72,61 @@ def process_event(lines, config):
         minutes = config["away_minutes"]
     else:
         raise RuntimeError(f"Wedstrijd hoort niet bij Volkel: {summary!r}")
-    # The event begins at the required arrival time. Kickoff remains in its description.
-    return set_attendance_start(lines, minutes)
 
+    # Strip existing alarms: the event itself now starts at the required arrival time.
+    cleaned = []
+    in_alarm = False
+    for line in event_lines:
+        if line == "BEGIN:VALARM":
+            in_alarm = True
+        elif line == "END:VALARM":
+            in_alarm = False
+        elif not in_alarm:
+            cleaned.append(line)
+    return set_attendance_start(cleaned, minutes)
+
+def build_calendar(key, config):
+    request = Request(config["source"], headers={"User-Agent": "VolkelFamilieAgenda/2.0"})
+    with urlopen(request, timeout=45) as response:
+        raw = response.read().decode("utf-8-sig")
+    lines = unfold_ical(raw)
+    if "BEGIN:VCALENDAR" not in lines or "END:VCALENDAR" not in lines:
+        raise RuntimeError(f"{key}: de bron leverde geen geldige iCalendar-feed.")
+
+    output = []
+    event = None
+    event_count = 0
+    for line in lines:
+        if line == "BEGIN:VEVENT":
+            event = [line]
+        elif event is not None:
+            event.append(line)
+            if line == "END:VEVENT":
+                output.extend(process_event(event, config))
+                event_count += 1
+                event = None
+        elif not line.startswith("X-WR-CALNAME:"):
+            output.append(line)
+
+    if event is not None:
+        raise RuntimeError(f"{key}: onvolledig wedstrijdonderdeel in de feed.")
+    if event_count == 0:
+        raise RuntimeError(f"{key}: geen wedstrijden gevonden; bestaand bestand blijft behouden.")
+
+    output.insert(output.index("BEGIN:VCALENDAR") + 1, f"X-WR-CALNAME:{config['name']}")
+    Path(f"{key}.ics").write_text("\r\n".join(output) + "\r\n", encoding="utf-8")
+    print(f"{key}.ics bijgewerkt: {event_count} wedstrijden.")
+
+def main():
+    if len(sys.argv) > 1 and sys.argv[1] == "--scheduled":
+        if datetime.now(ZoneInfo("Europe/Amsterdam")).hour != 6:
+            print("Niet 06:00 in Nederland; geplande run overgeslagen.")
+            return
+    for key, config in TEAMS.items():
+        build_calendar(key, config)
+    # Keep the old public URL as a JO12 compatibility copy.
+    Path("volkel.ics").write_text(Path("jo12.ics").read_text(encoding="utf-8"), encoding="utf-8")
+    print("Ook volkel.ics bijgewerkt als JO12-kopie.")
+
+if __name__ == "__main__":
+    main()
