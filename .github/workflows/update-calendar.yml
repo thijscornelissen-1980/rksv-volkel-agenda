@@ -1,4 +1,4 @@
-name: Update Voetbal Klaas calendar
+name: Update RKSV Volkel family calendars
 
 on:
   push:
@@ -15,27 +15,27 @@ permissions:
   contents: write
 
 jobs:
-  update-calendar:
+  update-calendars:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Download and prepare calendar
+      - name: Download and prepare calendars
         run: python update_calendar.py --scheduled
         if: github.event_name == 'schedule'
-      - name: Download and prepare calendar
+      - name: Download and prepare calendars
         run: python update_calendar.py
         if: github.event_name != 'schedule'
-      - name: Commit updated calendar
+      - name: Commit updated calendars
         run: |
-          git add -f volkel.ics
-          if git diff --cached --quiet -- volkel.ics; then
-            echo "Calendar is already up to date."
+          git add -f jo12.ics jo13.ics volkel.ics
+          if git diff --cached --quiet; then
+            echo "Calendars are already up to date."
             exit 0
           fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git commit -m "Update Voetbal Klaas calendar"
+          git commit -m "Update JO12 and JO13 calendars"
           git push
