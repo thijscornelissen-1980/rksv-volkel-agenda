@@ -5,10 +5,12 @@ on:
     branches: [main]
     paths:
       - "index.html"
+      - "jo12.ics"
+      - "jo13.ics"
       - "volkel.ics"
       - ".github/workflows/pages.yml"
   workflow_run:
-    workflows: ["Update Voetbal Klaas calendar"]
+    workflows: ["Update RKSV Volkel family calendars"]
     types: [completed]
   workflow_dispatch:
 
