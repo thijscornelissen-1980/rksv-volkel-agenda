@@ -16,13 +16,13 @@ def unescape_ical(value):
 
 def attendance_minutes(summary):
     # Match names are conventionally written as "Home team - Away team".
-    parts = re.split(r"\s+-\s+", summary, maxsplit=1)
+    parts = re.split(r"\s+(?:tegen|-)\s+", summary, maxsplit=1)
     if len(parts) != 2:
         return None
     home, away = (unescape_ical(x).lower() for x in parts)
-    if TEAM in home:
+    if TEAM in home or "rksv volkel" in home:
         return 45
-    if TEAM in away:
+    if TEAM in away or "rksv volkel" in away:
         return 60
     return None
 
