@@ -2,8 +2,8 @@
 
 Automatische iCalendar-feeds voor twee teams:
 
-- `jo12.ics`: RKSV Volkel JO12-1 (thuis 45 minuten, uit 60 minuten vooraf aanwezig)
-- `jo13.ics`: RKSV Volkel JO13-1 (thuis 60 minuten, uit 75 minuten vooraf aanwezig)
+- `jo12.ics`: RKSV Volkel JO12-1 (thuis: agenda start 45 minuten vóór aftrap, uit: 60 minuten vooraf)
+- `jo13.ics`: RKSV Volkel JO13-1 (thuis: agenda start 60 minuten vóór aftrap, uit: 75 minuten vooraf)
 
 Bronnen (officiële RKSV Volkel iCalendar-feeds):
 - JO12: `https://www.rksv-volkel.nl/Modules/UitslagenEnStanden/Front/ICal.ashx?id=73`
